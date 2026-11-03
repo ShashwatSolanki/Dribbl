@@ -4,7 +4,7 @@ import addimg from "../Components/add.png";
 
 function Home() {
   const { username } = useParams();
-  const navigate = useNavigate(); 
+  const navigate = useNavigate();
   const [users, setUsers] = useState([]);
   const [selectedUser, setSelectedUser] = useState(null);
   const [messageText, setMessageText] = useState("");
@@ -13,7 +13,9 @@ function Home() {
   const socketRef = useRef(null);
 
   useEffect(() => {
-    socketRef.current = new WebSocket("wss://192.168.1.34:3001");
+    const websocketUrl = import.meta.env.VITE_WS_URL || "ws://localhost:3001";
+    socketRef.current = new WebSocket(websocketUrl);
+
     socketRef.current.onopen = () => {
       console.log("WebSocket connected");
     };
@@ -48,9 +50,8 @@ function Home() {
       console.log("WebSocket disconnected");
     };
 
-    /* Graceful Termination */
     return () => {
-      socketRef.current.close();
+      socketRef.current?.close();
     };
   }, [username, users, selectedUser]);
 
@@ -66,7 +67,7 @@ function Home() {
   };
 
   const sendMessage = () => {
-    if (messageText.trim() && selectedUser) {
+    if (messageText.trim() && selectedUser && socketRef.current?.readyState === WebSocket.OPEN) {
       const newMsg = {
         type: "message",
         payload: {
@@ -75,6 +76,7 @@ function Home() {
           text: messageText,
         },
       };
+
       socketRef.current.send(JSON.stringify(newMsg));
 
       setAllMessages((prev) => {
@@ -90,15 +92,10 @@ function Home() {
   };
 
   const handleLogout = () => {
-    if (socketRef.current) {
-      socketRef.current.close();
-      console.log("WebSocket closed on logout");
-    }
-
+    socketRef.current?.close();
     setUsers([]);
     setSelectedUser(null);
     setAllMessages({});
-
     navigate("/");
   };
 
@@ -142,7 +139,8 @@ function Home() {
               <div
                 key={index}
                 className="message"
-                style={{ color: "#000", width: "80vw" }}>
+                style={{ color: "#000", width: "80vw" }}
+              >
                 <strong style={{ color: "black" }}>
                   {msg.sender === username ? "You" : msg.sender}:
                 </strong>{" "}
